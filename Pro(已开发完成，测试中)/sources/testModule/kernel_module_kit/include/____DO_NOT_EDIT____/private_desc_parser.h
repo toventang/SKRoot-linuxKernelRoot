@@ -8,6 +8,7 @@
 #include "private_mod_api_runtime_helper.h"
 #include "private_skroot_api_runtime_helper.h"
 #include "../module_base_web_ui_server.h"
+#include "../module_base_install_callback.h"
 
 #define ____INTERNEL_SKROOT_MODULE_MAIN __skroot_module_main_18fdf393885363712349ef3de5411bd5
 inline char skroot_module_name_5d1745f8a8fb4814fb0dbb5aab27bbca[1024] = {0};
@@ -33,6 +34,7 @@ inline char skroot_module_name_5d1745f8a8fb4814fb0dbb5aab27bbca[1024] = {0};
         if(strlen(skroot_module_desc_c658b5f0a346f94d52b96379fc26b0c4) == 0) printf(""); \
         if(strlen(skroot_module_author_857d43a4f1978f830f6a2dc91d840338) == 0) printf(""); \
         if(strlen(skroot_module_uuid_927fa0e9f491cdcbd07e8a647f09e1e2) == 0) printf(""); \
+        if(strlen(skroot_module_update_json_7310fa0a06d95799b3f9beaf60e26e85) == 0) printf(""); \
         extern void __compile_save_min_support_sdk_ver(void); \
         __compile_save_min_support_sdk_ver(); \
         return skroot_module_main(root_key, module_private_dir); \
@@ -76,6 +78,15 @@ inline char skroot_module_uuid_927fa0e9f491cdcbd07e8a647f09e1e2[1024] = {0};
         extern void __set_current_module_uuid32_1b0494ae8a788541db46b82cc1f0577c(const char* uuid32); \
         __set_current_module_uuid32_1b0494ae8a788541db46b82cc1f0577c(val); \
     };
+    
+inline char skroot_module_update_json_7310fa0a06d95799b3f9beaf60e26e85[1024] = {0};
+#define ___MOD_UPDATE_JSON_TAG_BEGIN  "4363a6368f39d93cabadc121f9bfa51626da9f19699b68470d7a4fd46a9ad541"
+#define ___MOD_UPDATE_JSON_TAG_END    "9f2efdc4b7e133634ec4c1ecd85975f560be89962733a0a7b228f1160d8d0ebc"
+#define ___MOD_UPDATE_JSON(val) \
+    inline int ____skroot_update_json_reg_token_4217f56a580ff098290dfd8c50aa11b9 = []() { \
+        strncpy(skroot_module_update_json_7310fa0a06d95799b3f9beaf60e26e85, ___MOD_UPDATE_JSON_TAG_BEGIN val ___MOD_UPDATE_JSON_TAG_END, sizeof(skroot_module_update_json_7310fa0a06d95799b3f9beaf60e26e85) - 1); \
+        return 0; \
+    }();
 
 inline kernel_module::WebUIHttpHandler* skroot_web_ui_handler_6f9d89cc84c2ea1bf7364fc1afda99b5 = nullptr;
 inline char skroot_web_ui_enable_flag_e0c73f6473a0e653be67875a3cf23a53[1024] = {0};
@@ -89,16 +100,49 @@ inline char skroot_web_ui_enable_flag_e0c73f6473a0e653be67875a3cf23a53[1024] = {
         return 0; \
     }();
 
+#define ____INTERNEL_SKROOT_MODULE_ON_INSTALL __skroot_module_on_install_k6JkibrjUwzXFpshvFuIwdUNRP4fYtLA
+inline decltype(&skroot_module_on_install) skroot_module_on_install_func_jngvokk4mlkkwbg92nj1u7vkhyjan2qj = nullptr;
+inline char skroot_module_on_install_enable_flag_wnx27u34cpuazxit73f52qkylnq89f3s[1024] = {0};
+#define ___MOD_ON_INSTALL_FLAG_BEGIN "za5hrnp5r0rjm1dnjld7xoc6tza0qvdd"
+#define ___MOD_ON_INSTALL_FLAG_END "v2ltlw5plpqec7yr5ifeuta24l3rv7ep"
+#define ___MOD_ON_INSTALL(callback) \
+    inline int ____skroot_module_on_install_reg_token_bdc5immbyggdvjc8qh0vk817i8hfd74f = []() { \
+        skroot_module_on_install_func_jngvokk4mlkkwbg92nj1u7vkhyjan2qj = &callback; \
+        strncpy(skroot_module_on_install_enable_flag_wnx27u34cpuazxit73f52qkylnq89f3s, ___MOD_ON_INSTALL_FLAG_BEGIN ___MOD_ON_INSTALL_FLAG_END, sizeof(skroot_module_on_install_enable_flag_wnx27u34cpuazxit73f52qkylnq89f3s) - 1); \
+        return 0; \
+    }();\
+    extern "C" __attribute__((visibility("default"))) __attribute__((used, weak)) void ____INTERNEL_SKROOT_MODULE_ON_INSTALL(const char* root_key, const char* module_private_dir, void (*cb)(const char* reason)) { \
+        if(!skroot_module_on_install_func_jngvokk4mlkkwbg92nj1u7vkhyjan2qj) return;\
+        cb(skroot_module_on_install_func_jngvokk4mlkkwbg92nj1u7vkhyjan2qj(root_key, module_private_dir).c_str()); \
+    };
+
+#define ____INTERNEL_SKROOT_MODULE_ON_UNINSTALL __skroot_module_on_uninstall_epmoso85hw4w1rzjagiuzdmnyqamk7ep
+inline decltype(&skroot_module_on_uninstall) skroot_module_on_uninstall_func_lv5biogiKlWBDvrs1clgywqMPwmqXkry = nullptr;
+inline char skroot_module_on_uninstall_enable_flag_ngln4z5zaku6lil4vrz2jtpoecb64avp[1024] = {0};
+#define ___MOD_ON_UNINSTALL_FLAG_BEGIN "hft0lrndcqfoff3vankyj5drv30apccd"
+#define ___MOD_ON_UNINSTALL_FLAG_END "p6tv4rinog5a0rl83tzp2ac6fl0uyqhk"
+#define ___MOD_ON_UNINSTALL(callback) \
+    inline int ____skroot_module_on_uninstall_reg_token_hu8jz8grph4qiicr6lrexkkgamy6dvaw = []() { \
+        skroot_module_on_uninstall_func_lv5biogiKlWBDvrs1clgywqMPwmqXkry = &callback; \
+        strncpy(skroot_module_on_uninstall_enable_flag_ngln4z5zaku6lil4vrz2jtpoecb64avp, ___MOD_ON_UNINSTALL_FLAG_BEGIN ___MOD_ON_UNINSTALL_FLAG_END, sizeof(skroot_module_on_uninstall_enable_flag_ngln4z5zaku6lil4vrz2jtpoecb64avp) - 1); \
+        return 0; \
+    }();\
+    extern "C" __attribute__((visibility("default"))) __attribute__((used, weak)) void ____INTERNEL_SKROOT_MODULE_ON_UNINSTALL(const char* root_key, const char* module_private_dir) { \
+        if(!skroot_module_on_uninstall_func_lv5biogiKlWBDvrs1clgywqMPwmqXkry) return;\
+        skroot_module_on_uninstall_func_lv5biogiKlWBDvrs1clgywqMPwmqXkry(root_key, module_private_dir); \
+    };
+
+
 #ifndef FOLDER_HEAD_ROOT_KEY_LEN
 #define FOLDER_HEAD_ROOT_KEY_LEN 16
 #endif
 
 #define ____INTERNEL_SKROOT_MODULE_WEB_UI_MAIN __skroot_module_web_ui_main_ceb6f0bbebe5c8978eb2168799aa0ca4
 #define ____INTERNEL_SKROOT_MODULE_LAST_WEB_UI_SERVER_PORT __skroot_module_last_web_ui_server_port_db2a2bebe2b190482ad0ac73996c7b86
-extern "C" __attribute__((visibility("default"))) __attribute__((used, weak)) void ____INTERNEL_SKROOT_MODULE_WEB_UI_MAIN(const char* root_key, const char* module_private_dir, const char* mod_uuid, int port, KModErr& err) {
+extern "C" __attribute__((visibility("default"))) __attribute__((used, weak)) void ____INTERNEL_SKROOT_MODULE_WEB_UI_MAIN(const char* root_key, const char* module_private_dir, const char* module_webroot_dir, const char* mod_uuid, int port, KModErr& err) {
     if(strlen(skroot_web_ui_enable_flag_e0c73f6473a0e653be67875a3cf23a53) == 0) printf("");
-    KModErr unsafe_module_start_web_ui_server(const char* root_key, const char* module_private_dir, const char* mod_uuid, kernel_module::WebUIHttpHandler* handler, int port);
-    err = unsafe_module_start_web_ui_server(root_key, module_private_dir, mod_uuid, skroot_web_ui_handler_6f9d89cc84c2ea1bf7364fc1afda99b5, port);
+    KModErr unsafe_module_start_web_ui_server(const char* root_key, const char* module_private_dir, const char* module_webroot_dir, const char* mod_uuid, kernel_module::WebUIHttpHandler* handler, int port);
+    err = unsafe_module_start_web_ui_server(root_key, module_private_dir, module_webroot_dir, mod_uuid, skroot_web_ui_handler_6f9d89cc84c2ea1bf7364fc1afda99b5, port);
 }
 
 extern "C" __attribute__((visibility("default"))) __attribute__((used, weak)) void ____INTERNEL_SKROOT_MODULE_LAST_WEB_UI_SERVER_PORT(int& out_port, KModErr& err) {

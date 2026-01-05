@@ -37,7 +37,7 @@ public:
     }
 
     bool handlePost(CivetServer* server, struct mg_connection* conn) override {
-        char buf[1024] = {0}; mg_read(conn, buf, sizeof(buf) - 1);
+        char buf[4096] = {0}; mg_read(conn, buf, sizeof(buf) - 1);
         const struct mg_request_info* req_info = mg_get_request_info(conn);
         std::string path = req_info->local_uri ? req_info->local_uri : "/";
         std::string body(buf);
@@ -62,9 +62,9 @@ private:
 };
 
 // SKRoot 模块名片
-SKROOT_MODULE_NAME("演示模块WebUI页面");
-SKROOT_MODULE_VERSION("1.0.0");
-SKROOT_MODULE_DESC("演示在模块中使用WebUI页面");
-SKROOT_MODULE_AUTHOR("SKRoot官方教程");
-SKROOT_MODULE_UUID32("6080b19fb2db26c534af3051103f541f");
-SKROOT_MODULE_WEB_UI(MyWebHttpHandler);
+SKROOT_MODULE_NAME("内置 WebUI 示例模块")
+SKROOT_MODULE_VERSION("1.0.0")
+SKROOT_MODULE_DESC("演示在模块中使用WebUI页面")
+SKROOT_MODULE_AUTHOR("SKRoot官方教程")
+SKROOT_MODULE_UUID32("6080b19fb2db26c534af3051103f541f")
+SKROOT_MODULE_WEB_UI(MyWebHttpHandler)

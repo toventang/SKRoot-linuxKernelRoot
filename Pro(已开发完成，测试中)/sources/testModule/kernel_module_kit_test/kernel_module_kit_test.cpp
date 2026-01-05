@@ -1,16 +1,15 @@
 ﻿
-#include "cpu_pin_guard_auto.h"
 #include "test_linux_kernel_api.h"
 #include "test_string_ops.h"
 
 KModErr Test_execute_kernel_asm_func() {
-    aarch64_asm_info asm_info = init_aarch64_asm();
-    auto a = asm_info.a.get();
+    aarch64_asm_ctx asm_ctx = init_aarch64_asm();
+    auto a = asm_ctx.assembler();
     kernel_module::arm64_module_asm_func_start(a);
     //nothing to do
     a->mov(x0, x0);
     kernel_module::arm64_module_asm_func_end(a, 0x12345);
-	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(asm_info);
+	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(a);
     if (!bytes.size()) return KModErr::ERR_MODULE_ASM;
     uint64_t result = 0;
     RETURN_IF_ERROR(kernel_module::execute_kernel_asm_func(g_root_key, bytes, result));
@@ -18,10 +17,10 @@ KModErr Test_execute_kernel_asm_func() {
     return KModErr::OK;
 }
 
-KModErr Test_get_kernel_virtual_mem_start_addr() {
-    uint64_t result_addr = 0;
-    RETURN_IF_ERROR(kernel_module::get_kernel_virtual_mem_start_addr(g_root_key, result_addr));
-    printf("Output addr: %p\n", (void*)result_addr);
+KModErr Test_get_kernel_base_vaddr() {
+    uint64_t kaddr = 0;
+    RETURN_IF_ERROR(kernel_module::get_kernel_base_vaddr(g_root_key, kaddr));
+    printf("Output addr: %p\n", (void*)kaddr);
     return KModErr::OK;
 }
 
@@ -74,12 +73,13 @@ KModErr Test_write_rw_kernel_mem() {
 }
 
 KModErr Test_write_x_kernel_mem() {
-    uint64_t result_addr = 0;
-    RETURN_IF_ERROR(kernel_module::kallsyms_lookup_name(g_root_key, "kernel_halt", result_addr));
+    uint64_t kaddr = 0;
+    RETURN_IF_ERROR(kernel_module::kallsyms_lookup_name(g_root_key, "kernel_halt", kaddr));
+    printf("Output addr: %p\n", (void*)kaddr);
 
     // 读取原始内存内容
     uint8_t buf[16] = {0};
-    RETURN_IF_ERROR(kernel_module::read_kernel_mem(g_root_key, result_addr, buf, sizeof(buf)));
+    RETURN_IF_ERROR(kernel_module::read_kernel_mem(g_root_key, kaddr, buf, sizeof(buf)));
     printf("read_kernel_mem (before) Buffer before:");
     for (size_t i = 0; i < sizeof(buf); ++i) {
         printf(" %02hhx", buf[i]);
@@ -88,11 +88,11 @@ KModErr Test_write_x_kernel_mem() {
 
     // 准备修改数据（8 字节）
     uint32_t ccmd[2] = { 0x11223344, 0x55667788 };
-    RETURN_IF_ERROR(kernel_module::write_kernel_mem(g_root_key, result_addr, ccmd, sizeof(ccmd), kernel_module::KernMemProt::KMP_X));
+    RETURN_IF_ERROR(kernel_module::write_kernel_mem(g_root_key, kaddr, ccmd, sizeof(ccmd), kernel_module::KernMemProt::KMP_X));
 
     // 再次读取内存以验证修改效果
     memset(buf, 0, sizeof(buf));
-    RETURN_IF_ERROR(kernel_module::read_kernel_mem(g_root_key, result_addr, buf, sizeof(buf)));
+    RETURN_IF_ERROR(kernel_module::read_kernel_mem(g_root_key, kaddr, buf, sizeof(buf)));
     printf("read_kernel_mem (after) Buffer after:");
     for (size_t i = 0; i < sizeof(buf); ++i) {
         printf(" %02hhx", buf[i]);
@@ -133,17 +133,20 @@ KModErr Test_disk_storage() {
 
 std::vector<uint8_t> generate_filename_lookup_before_hook_bytes() {
     KModErr err = KModErr::OK;
-    aarch64_asm_info asm_info = init_aarch64_asm();
-    auto a = asm_info.a.get();
+    aarch64_asm_ctx asm_ctx = init_aarch64_asm();
+    auto a = asm_ctx.assembler();
     kernel_module::arm64_before_hook_start(a);
     kernel_module::export_symbol::printk(g_root_key, a, err, "[!!!] test ok\n");
     kernel_module::arm64_before_hook_end(a, true);
-    return aarch64_asm_to_bytes(asm_info);;
+    return aarch64_asm_to_bytes(a);;
 }
 
 KModErr Test_install_kernel_function_before_hook() {
-    kernel_module::SymbolHit hit;
-    RETURN_IF_ERROR(kernel_module::kallsyms_lookup_name(g_root_key, "filename_lookup", kernel_module::SymbolMatchMode::Prefix, hit));
+    using SymbolMatchMode = kernel_module::SymbolMatchMode;
+    using SymbolHit = kernel_module::SymbolHit;
+
+    SymbolHit hit;
+    RETURN_IF_ERROR(kernel_module::kallsyms_lookup_name(g_root_key, "filename_lookup", SymbolMatchMode::Prefix, hit));
     printf("%s, Output addr: %p\n", hit.name, (void*)hit.addr);
    
     // Read memory before hook
@@ -175,18 +178,18 @@ KModErr Test_install_kernel_function_before_hook() {
 }
 
 std::vector<uint8_t> generate_avc_denied_after_hook_bytes() {
-    aarch64_asm_info asm_info = init_aarch64_asm();
-    auto a = asm_info.a.get();
+    aarch64_asm_ctx asm_ctx = init_aarch64_asm();
+    auto a = asm_ctx.assembler();
     kernel_module::arm64_after_hook_start(a);
     a->mov(x0, xzr);
     kernel_module::arm64_after_hook_end(a);
-    return aarch64_asm_to_bytes(asm_info);;
+    return aarch64_asm_to_bytes(a);;
 }
 
 KModErr Test_install_kernel_function_after_hook() {
     uint64_t avc_denied_addr = 0, ret_addr = 0;
-    RETURN_IF_ERROR(kernel_module::get_avc_denied_addr(g_root_key, avc_denied_addr, ret_addr));
-    printf("get_avc_denied_addr Output start addr: %p, ret addr: %p\n", (void*)avc_denied_addr, (void*)ret_addr);
+    RETURN_IF_ERROR(kernel_module::get_avc_denied_kaddr(g_root_key, avc_denied_addr, ret_addr));
+    printf("get_avc_denied_kaddr Output start addr: %p, ret addr: %p\n", (void*)avc_denied_addr, (void*)ret_addr);
    
     // Read memory before hook
     {
@@ -312,22 +315,20 @@ int main(int argc, char *argv[]) {
         strncpy(g_root_key, argv[1], sizeof(g_root_key) - 1);
     } else {
         //TODO: 在此修改你的Root key值。
-        strncpy(g_root_key, "wCndSTFps3EWt21GJzqAJ8OjhDJjXNyRHkdiZWP51fvFjTNj", sizeof(g_root_key) - 1);
+        strncpy(g_root_key, "vzXtDKDAltAGxHtMGRZZfVouy90dgNqFsLM6UGeqb6OgH0VX", sizeof(g_root_key) - 1);
     }
-    CpuPinGuardAuto cpu_lock;
-
     int idx = 1;
     // 单元测试：内核模块基础能力
     TEST(idx++, Test_execute_kernel_asm_func);               // 执行shellcode并获取返回值
-    TEST(idx++, Test_get_kernel_virtual_mem_start_addr);     // 获取内核静态代码段（.text）起始虚拟地址
+    TEST(idx++, Test_get_kernel_base_vaddr);                 // 获取内核虚拟基址
     TEST(idx++, Test_alloc_kernel_mem);                      // 申请内核内存
     TEST(idx++, Test_free_kernel_mem);                       // 释放内核内存
     TEST(idx++, Test_read_kernel_mem);                       // 读取内核内存
     TEST(idx++, Test_write_rw_kernel_mem);                   // 写入内核内存(可读写区域)
     TEST(idx++, Test_write_x_kernel_mem);                    // 写入内核内存(仅执行区域)
     TEST(idx++, Test_disk_storage);                          // 读取、写入磁盘存储
-    TEST(idx++, Test_install_kernel_function_before_hook);   // 安装内核钩子（在内核函数执行前）
-    TEST(idx++, Test_install_kernel_function_after_hook);    // 安装内核钩子（在内核函数执行后）
+    TEST(idx++, Test_install_kernel_function_before_hook);   // 安装内核Hook（可在任意点位安装，执行前触发）
+    TEST(idx++, Test_install_kernel_function_after_hook);    // 安装内核Hook（在内核函数执行后触发）
     TEST(idx++, Test_get_task_struct_pid_offset);            // 获取 task_struct 结构体中 pid 字段的偏移量
     TEST(idx++, Test_get_task_struct_real_parent_offset);    // 获取 task_struct 结构体中 real_parent 字段的偏移量
     TEST(idx++, Test_get_task_struct_comm_offset);           // 获取 task_struct 结构体中 comm 字段的偏移量
@@ -359,6 +360,9 @@ int main(int argc, char *argv[]) {
 
     // 单元测试：内核字符串与内存操作
     TEST(idx++, Test_kstrlen);
+    TEST(idx++, Test_kstrnlen1);
+    TEST(idx++, Test_kstrnlen2);
+    TEST(idx++, Test_kstrnlen3);
     TEST(idx++, Test_kstrcmp1);
     TEST(idx++, Test_kstrcmp2);
     TEST(idx++, Test_kstrcmp3);
@@ -369,11 +373,24 @@ int main(int argc, char *argv[]) {
     TEST(idx++, Test_kstrncmp5);
     TEST(idx++, Test_kstrncmp6);
     TEST(idx++, Test_kstrcpy);
+    TEST(idx++, Test_kstrncpy);
+    TEST(idx++, Test_kstrcat1);
+    TEST(idx++, Test_kstrcat2);
+    TEST(idx++, Test_kstrcat3);
+    TEST(idx++, Test_kstrcat4);
+    TEST(idx++, Test_kstrncat1);
+    TEST(idx++, Test_kstrncat2);
+    TEST(idx++, Test_kstrncat3);
+    TEST(idx++, Test_kstrncat4);
+    TEST(idx++, Test_kstrncat5);
     TEST(idx++, Test_kstrstr1);
     TEST(idx++, Test_kstrstr2);
     TEST(idx++, Test_kstrstr3);
     TEST(idx++, Test_kstrchr1);
     TEST(idx++, Test_kstrchr2);
+    TEST(idx++, Test_kstrrchr1);
+    TEST(idx++, Test_kstrrchr2);
+    TEST(idx++, Test_kstrrchr3);
     TEST(idx++, Test_kmemset1);
     TEST(idx++, Test_kmemset2);
     TEST(idx++, Test_kmemcmp1);

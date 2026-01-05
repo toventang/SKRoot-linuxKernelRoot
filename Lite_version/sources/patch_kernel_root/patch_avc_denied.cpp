@@ -10,14 +10,6 @@ PatchAvcDenied::PatchAvcDenied(const PatchBase& patch_base, const SymbolRegion& 
 
 PatchAvcDenied::~PatchAvcDenied() {}
 
-int PatchAvcDenied::get_need_read_cap_cnt() {
-	int cnt = get_cap_cnt();
-	if (cnt < 5) {
-		cnt = 3;
-	}
-	return cnt;
-}
-
 size_t PatchAvcDenied::patch_avc_denied(const SymbolRegion& hook_func_start_region, size_t task_struct_cred_offset, std::vector<patch_bytes_data>& vec_out_patch_bytes_data) {
 	size_t hook_func_start_addr = hook_func_start_region.offset;
 	if (hook_func_start_addr == 0) { return 0; }
@@ -29,14 +21,14 @@ size_t PatchAvcDenied::patch_avc_denied(const SymbolRegion& hook_func_start_regi
 	int securebits_padding = get_cred_securebits_padding();
 	int securebits_len = 4 + securebits_padding;
 	uint64_t cap_ability_max = get_cap_ability_max();
-	int cap_cnt = get_need_read_cap_cnt();
+	int cap_cnt = get_cap_cnt();
 
-	aarch64_asm_info asm_info = init_aarch64_asm();
-	auto a = asm_info.a.get();
+	aarch64_asm_ctx asm_ctx = init_aarch64_asm();
+	auto a = asm_ctx.assembler();
 	Label label_end = a->newLabel();
 	Label label_cycle_cap = a->newLabel();
 
-	get_current_to_reg(a, x11);
+	emit_get_current(a, x11);
 	a->ldr(x11, ptr(x11, task_struct_cred_offset));
 	a->ldr(w12, ptr(x11, cred_euid_start_pos));
 	a->cbnz(w12, label_end);
@@ -54,9 +46,9 @@ size_t PatchAvcDenied::patch_avc_denied(const SymbolRegion& hook_func_start_regi
 	a->mov(w0, wzr);
 	a->bind(label_end);
 	a->ret(x30);
-	std::cout << print_aarch64_asm(asm_info) << std::endl;
+	std::cout << print_aarch64_asm(a) << std::endl;
 
-	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(asm_info);
+	std::vector<uint8_t> bytes = aarch64_asm_to_bytes(a);
 	if (bytes.size() == 0) {
 		return 0;
 	}

@@ -53,6 +53,7 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         Button test_root_btn = view.findViewById(R.id.test_root_btn);
         Button run_root_cmd_btn = view.findViewById(R.id.run_root_cmd_btn);
         Button root_exec_process_btn = view.findViewById(R.id.root_exec_process_btn);
+        Button implant_app_btn_btn = view.findViewById(R.id.implant_app_btn);
         Button copy_info_btn = view.findViewById(R.id.copy_info_btn);
         Button clean_info_btn = view.findViewById(R.id.clean_info_btn);
         console_edit = view.findViewById(R.id.console_edit);
@@ -62,6 +63,7 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         test_root_btn.setOnClickListener(this);
         run_root_cmd_btn.setOnClickListener(this);
         root_exec_process_btn.setOnClickListener(this);
+        implant_app_btn_btn.setOnClickListener(this);
         copy_info_btn.setOnClickListener(this);
         clean_info_btn.setOnClickListener(this);
     }
@@ -86,6 +88,8 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
             case R.id.run_root_cmd_btn:
                 showInputRootCmdDlg();
                 break;
+            case R.id.implant_app_btn:
+                break;
             case R.id.root_exec_process_btn:
                 showInputRootExecProcessPathDlg();
                 break;
@@ -100,16 +104,20 @@ public class HomeFragment extends Fragment implements View.OnClickListener {
         }
     }
     private void showSkrootStatus() {
-        String core = NativeBridge.getSdkSkrootEnvVersion();
-        String ver = NativeBridge.getInstalledSkrootEnvVersion(mRootKey);
-        if(ver.isEmpty()) {
+        String curState = NativeBridge.getSkrootEnvState(mRootKey);
+        String installedVer = NativeBridge.getInstalledSkrootEnvVersion(mRootKey);
+        String sdkVer = NativeBridge.getSdkVersion();
+
+        if(curState.indexOf("NotInstalled") != -1) {
             appendConsoleMsg("SKRoot环境未安装！");
-        } else  {
-            if (!core.equals(ver)) {
-                appendConsoleMsg("SKRoot环境已安装，核心版本：" + ver + "，版本太低，请升级！");
-                appendConsoleMsg("升级方法：重新点击“安装SKRoot环境”按钮。");
+        } else if(curState.indexOf("Fault") != -1) {
+            appendConsoleMsg("SKRoot环境出现故障，核心版本：" + installedVer);
+        } else if(curState.indexOf("Running") != -1) {
+            if (sdkVer.equals(installedVer)) {  
+                appendConsoleMsg("SKRoot环境运行中，核心版本：" + installedVer);
             } else {
-                appendConsoleMsg("SKRoot环境已安装，核心版本：" + ver);
+                appendConsoleMsg("SKRoot环境运行中，核心版本：" + installedVer + "，版本太低，请升级！");
+                appendConsoleMsg("升级方法：重新点击“安装SKRoot环境”按钮。");
             }
         }
     }

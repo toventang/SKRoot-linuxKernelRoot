@@ -5,19 +5,38 @@
 #include <string.h>
 #include <errno.h>
 #include <vector>
-#include "aarch64_asm_arg.h"
 #include "kernel_module_kit_umbrella.h"
+#include "aarch64_asm_arg.h"
 
-/*
- * 这里封装了对内核导出符号（exported symbols）的 API 调用函数。可后续补充。
- * 主要目的是为了在汇编代码生成（asmjit AArch64）过程中，更方便地调用内核 API，而无需处理寻址细节。
- */
-
+/***************************************************************************
+ * 内核导出符号（exported symbols）调用封装
+ *
+ * 功能：简化内核导出符号调用，统一入口。外部调用无需关心符号解析、寻址、传参序列等细节，让上层逻辑更专注于业务流程。
+ *
+ * 实现：细节位于 module_base_kernel_export_symbol.inl（可按需扩展更多符号封装）。
+ *
+ * 寄存器说明：
+ *    X0 可作为入参寄存器使用；调用结束后 X0 存放返回值（因此会被改写/覆盖）；
+ *    X1～X17、X29、X30 调用前后值保持不变（外部无需保护）；
+ *    X18～X28 可能被内部用作临时寄存器并被改写；如需保持请由调用方自行保护。
+ *
+ * 错误处理：out_err 用于回传错误码（成功为 OK），接收寻址失败等错误信息；调用方可据此决定是否继续生成后续指令。
+ * 
+ * 用法示例：
+ * {
+ *   RegProtectGuard g1(a, x0);  // 保存 X0 原值，作用域结束恢复；避免被下方返回值覆盖
+ *   aarch64_asm_mov_x(a, x1, 128);
+ *   export_symbol::kmalloc(root_key, a, err, x1, KmallocFlags::GFP_KERNEL);
+ *   RETURN_IF_ERROR(err);       // 若符号寻址/调用失败则中止生成
+ *   a->mov(x10, x0);            // 将返回值转存到 X10，供作用域外使用
+ * }
+ * a->cbz(x10, L_equal);        // 通过 X10 判断返回值
+ ***************************************************************************/
 namespace kernel_module {
 namespace export_symbol {
 using namespace asmjit::a64;
-// 原型：struct task_struct *get_current(void);，获取current指针并赋值到寄存器x，需判空，因为kthread无法获取
-void get_current_to_reg(Assembler* a, GpX x);
+// 原型：struct task_struct *get_current(void);，获取current指针并赋值到寄存器x，需判空，因为kthread无法获取。无返回值。
+void get_current(Assembler* a, GpX x);
 
 // 原型：unsigned long copy_from_user(void *to, const void __user *from, unsigned long n)，返回值为X0寄存器
 void copy_from_user(const char* root_key, Assembler* a, KModErr& out_err, GpX to, GpX __user_from, GpX n);
@@ -49,7 +68,7 @@ void kallsyms_on_each_symbol(const char* root_key, Assembler* a, KModErr& out_er
 // 原型: struct mm_struct *get_task_mm(struct task_struct *task)，返回值为X0寄存器
 void get_task_mm(const char* root_key, Assembler* a, KModErr& out_err, GpX task);
 
-// 原型: void mmput(struct mm_struct *mm)
+// 原型: void mmput(struct mm_struct *mm) 无返回值
 void mmput(const char* root_key, Assembler* a, KModErr& out_err, GpX mm);
 
 // 原型: int set_memory_ro(unsigned long addr, int numpages)，返回值为W0寄存器
@@ -84,7 +103,7 @@ void kmalloc(const char* root_key, Assembler* a, KModErr& out_err, uint64_t size
 // kmalloc (外部封装版本)：申请内核内存，结果写入 out_objp，返回值为OK代表执行成功
 KModErr kmalloc(const char* root_key, uint64_t size, KmallocFlags flags, uint64_t& out_objp);
 
-// 原型：void kfree(const void *objp)
+// 原型：void kfree(const void *objp) 无返回值
 void kfree(const char* root_key, Assembler* a, KModErr& out_err, GpX objp);
 // kfree (外部封装版本)：释放内核内存，返回值为OK代表执行成功
 KModErr kfree(const char* root_key, uint64_t objp);
@@ -105,7 +124,7 @@ void execmem_alloc(const char* root_key, Assembler* a, KModErr& out_err, Execmem
 // execmem_alloc (外部封装版本)：申请内核内存，结果写入 out_ptr，返回值为OK代表执行成功
 KModErr execmem_alloc(const char* root_key, ExecmemTypes type, uint64_t size, uint64_t& out_ptr);
 
-// 原型：void execmem_free(void *ptr);
+// 原型：void execmem_free(void *ptr); 无返回值
 void execmem_free(const char* root_key, Assembler* a, KModErr& out_err, GpX ptr);
 // execmem_free (外部封装版本)：释放内核内存，返回值为OK代表执行成功
 KModErr execmem_free(const char* root_key, uint64_t ptr);
@@ -118,7 +137,7 @@ void module_alloc(const char* root_key, Assembler* a, KModErr& out_err, uint64_t
 // module_alloc (外部封装版本)：申请内核内存，结果写入 out_module_region，返回值为OK代表执行成功
 KModErr module_alloc(const char* root_key, uint64_t size, uint64_t& out_module_region);
 
-// 原型：void module_memfree(void *module_region);
+// 原型：void module_memfree(void *module_region); 无返回值
 void module_memfree(const char* root_key, Assembler* a, KModErr& out_err, GpX module_region);
 // module_memfree (外部封装版本)：释放内核内存，返回值为OK代表执行成功
 KModErr module_memfree(const char* root_key, uint64_t module_region);
@@ -153,6 +172,36 @@ enum class LookupFlags : uint32_t {
 void kern_path(const char* root_key, Assembler* a, KModErr& out_err, GpX name, GpW flags, GpX path);
 void kern_path(const char* root_key, Assembler* a, KModErr& out_err, GpX name, LookupFlags flags, GpX path);
 void kern_path(const char* root_key, Assembler* a, KModErr& out_err, GpX name, LookupFlags flags, uint64_t path_buf_addr);
+
+// 原型: struct pid *find_get_pid(pid_t nr)，返回值为X0寄存器
+void find_get_pid(const char* root_key, Assembler* a, KModErr & out_err, GpW nr);
+
+// 原型: void put_pid(struct pid *pid)，无返回值
+void put_pid(const char* root_key, Assembler* a, KModErr & out_err, GpX pid);
+
+namespace linux_above_4_19_0 {
+enum class PidType : uint32_t {
+	PIDTYPE_PID = 0,
+	PIDTYPE_TGID,
+	PIDTYPE_PGID,
+	PIDTYPE_SID,
+	PIDTYPE_MAX,
+};
+// 原型: struct task_struct *pid_task(struct pid *pid, enum pid_type type)，返回值为X0寄存器
+void pid_task(const char* root_key, Assembler* a, KModErr& out_err, GpX pid, GpW type);
+void pid_task(const char* root_key, Assembler* a, KModErr& out_err, GpX pid, PidType type);
+}
+namespace linux_older {
+enum class PidType : uint32_t {
+	PIDTYPE_PID = 0,
+	PIDTYPE_PGID,
+	PIDTYPE_SID,
+	PIDTYPE_MAX
+};
+// 原型: struct task_struct *pid_task(struct pid *pid, enum pid_type type)，返回值为X0寄存器
+void pid_task(const char* root_key, Assembler* a, KModErr& out_err, GpX pid, GpW type);
+void pid_task(const char* root_key, Assembler* a, KModErr& out_err, GpX pid, PidType type);
+}
 
 } // namespace export_symbol
 } // namespace kernel_module
